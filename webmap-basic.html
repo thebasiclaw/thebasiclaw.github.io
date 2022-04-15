@@ -14,6 +14,7 @@
             width: 250px;
             padding: 0 5px 0 5px;
         }
+
         .esri-button {
             margin: 5px 0 5px 0;
         }
@@ -38,8 +39,9 @@
             "esri/Graphic",
             "esri/widgets/BasemapToggle",
             "esri/widgets/BasemapGallery"
-        ], function (esriConfig, WebMap, MapView, ScaleBar, Legend, Search, LayerList, serviceArea, ServiceAreaParams, FeatureSet, Graphic,BasemapToggle, BasemapGallery) {
+        ], function (esriConfig, WebMap, MapView, ScaleBar, Legend, Search, LayerList, serviceArea, ServiceAreaParams, FeatureSet, Graphic, BasemapToggle, BasemapGallery) {
             esriConfig.apiKey = "AAPKe302f755c0c541da917d952a22328693UItCFsTANHzxzdMiiaYEZJD7feMG9VxAbrY7XKC_6l994kIoNw89M3fuk3b3Zep4";
+            var serviceEvent;
 
             const webmap = new WebMap({
                 portalItem: {
@@ -57,31 +59,33 @@
                 view: view,
                 nextBasemap: "arcgis-imagery"
             });
-            view.ui.add(basemapToggle,"bottom-right");
+            view.ui.add(basemapToggle, "bottom-right");
 
             const serviceAreaUrl = "https://route-api.arcgis.com/arcgis/rest/services/World/ServiceAreas/NAServer/ServiceArea_World/solveServiceArea";
 
-            view.on("click", function (event) {
-                const locationGraphic = createGraphic(event.mapPoint);
-                const driveTimeCutoffs = [5, 10, 15]; // Minutes
-                const serviceAreaParams = createServiceAreaParams(locationGraphic, driveTimeCutoffs, view.spatialReference);
-                solveServiceArea(serviceAreaUrl, serviceAreaParams);
-            });
-
-            // Create the location graphic
-            function createGraphic(point) {
-                view.graphics.removeAll();
-                const graphic = new Graphic({
-                    geometry: point,
-                    symbol: {
-                        type: "simple-marker",
-                        color: "white",
-                        size: 8
-                    }
+            function startGraphics() {
+                serviceEvent = view.on("click", function (event) {
+                    const locationGraphic = createGraphic(event.mapPoint);
+                    const driveTimeCutoffs = [5, 10, 15]; // Minutes
+                    const serviceAreaParams = createServiceAreaParams(locationGraphic, driveTimeCutoffs, view.spatialReference);
+                    solveServiceArea(serviceAreaUrl, serviceAreaParams);
                 });
 
-                view.graphics.add(graphic);
-                return graphic;
+                // Create the location graphic
+                function createGraphic(point) {
+                    view.graphics.removeAll();
+                    const graphic = new Graphic({
+                        geometry: point,
+                        symbol: {
+                            type: "simple-marker",
+                            color: "white",
+                            size: 8
+                        }
+                    });
+
+                    view.graphics.add(graphic);
+                    return graphic;
+                }
             }
 
             function createServiceAreaParams(locationGraphic, driveTimeCutoffs, outSpatialReference) {
@@ -117,9 +121,13 @@
                     });
             }
 
+            document.getElementById("start").addEventListener("click", startGraphics);
+
             function resetGraphics() {
                 view.graphics.removeAll();
+                serviceEvent.remove();
             }
+
             document.getElementById("reset").addEventListener("click", resetGraphics);
 
             const scalebar = new ScaleBar({
@@ -156,6 +164,8 @@
 <body>
 <div id="viewDiv"></div>
 <div id="controls" class="esri-widget">
+    <h5>Service Buffer</h5>
+    <button id="start" class="esri-button">Start</button>
     <button id="reset" class="esri-button esri-button--secondary">Reset</button>
 </div>
 </body>
