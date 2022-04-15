@@ -1,0 +1,161 @@
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Hong Kong Public Housing Estates, Shopping Centres and Population Distribution</title>
+    <style>
+        html, body, #viewDiv {
+            padding: 0;
+            margin: 0;
+            height: 100%;
+            width: 100%;
+        }
+
+        #controls {
+            width: 250px;
+            padding: 0 5px 0 5px;
+        }
+        .esri-button {
+            margin: 5px 0 5px 0;
+        }
+    </style>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.23/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.23/"></script>
+
+    <h3>Hong Kong Public Housing Estates, Shopping Centres and Population Distribution</h3>
+
+    <script>
+        require([
+            "esri/config",
+            "esri/WebMap",
+            "esri/views/MapView",
+            "esri/widgets/ScaleBar",
+            "esri/widgets/Legend",
+            "esri/widgets/Search",
+            "esri/widgets/LayerList",
+            "esri/rest/serviceArea",
+            "esri/rest/support/ServiceAreaParameters",
+            "esri/rest/support/FeatureSet",
+            "esri/Graphic",
+            "esri/widgets/BasemapToggle",
+            "esri/widgets/BasemapGallery"
+        ], function (esriConfig, WebMap, MapView, ScaleBar, Legend, Search, LayerList, serviceArea, ServiceAreaParams, FeatureSet, Graphic,BasemapToggle, BasemapGallery) {
+            esriConfig.apiKey = "AAPKe302f755c0c541da917d952a22328693UItCFsTANHzxzdMiiaYEZJD7feMG9VxAbrY7XKC_6l994kIoNw89M3fuk3b3Zep4";
+
+            const webmap = new WebMap({
+                portalItem: {
+                    id: "8a450598f6ef44f2ab00993b5da2bf87"
+                }
+            });
+
+            const view = new MapView({
+                container: "viewDiv",
+                map: webmap
+
+            });
+
+            const basemapToggle = new BasemapToggle({
+                view: view,
+                nextBasemap: "arcgis-imagery"
+            });
+            view.ui.add(basemapToggle,"bottom-right");
+
+            const serviceAreaUrl = "https://route-api.arcgis.com/arcgis/rest/services/World/ServiceAreas/NAServer/ServiceArea_World/solveServiceArea";
+
+            view.on("click", function (event) {
+                const locationGraphic = createGraphic(event.mapPoint);
+                const driveTimeCutoffs = [5, 10, 15]; // Minutes
+                const serviceAreaParams = createServiceAreaParams(locationGraphic, driveTimeCutoffs, view.spatialReference);
+                solveServiceArea(serviceAreaUrl, serviceAreaParams);
+            });
+
+            // Create the location graphic
+            function createGraphic(point) {
+                view.graphics.removeAll();
+                const graphic = new Graphic({
+                    geometry: point,
+                    symbol: {
+                        type: "simple-marker",
+                        color: "white",
+                        size: 8
+                    }
+                });
+
+                view.graphics.add(graphic);
+                return graphic;
+            }
+
+            function createServiceAreaParams(locationGraphic, driveTimeCutoffs, outSpatialReference) {
+                // Create one or more locations (facilities) to solve for
+                const featureSet = new FeatureSet({
+                    features: [locationGraphic]
+                });
+
+                // Set all of the input parameters for the service
+                return new ServiceAreaParams({
+                    facilities: featureSet,
+                    defaultBreaks: driveTimeCutoffs,
+                    trimOuterPolygon: true,
+                    outSpatialReference: outSpatialReference
+                });
+            }
+
+            function solveServiceArea(url, serviceAreaParams) {
+                return serviceArea.solve(url, serviceAreaParams)
+                    .then(function (result) {
+                        if (result.serviceAreaPolygons.length) {
+                            // Draw each service area polygon
+                            result.serviceAreaPolygons.forEach(function (graphic) {
+                                graphic.symbol = {
+                                    type: "simple-fill",
+                                    color: "rgba(255,50,50,.25)"
+                                }
+                                view.graphics.add(graphic, 0);
+                            });
+                        }
+                    }, function (error) {
+                        console.log(error);
+                    });
+            }
+
+            function resetGraphics() {
+                view.graphics.removeAll();
+            }
+            document.getElementById("reset").addEventListener("click", resetGraphics);
+
+            const scalebar = new ScaleBar({
+                view: view,
+                unit: "metric"
+            });
+
+            view.ui.add(scalebar, "bottom-left");
+
+            let layerList = new LayerList({
+                view: view
+            });
+            view.ui.add(layerList, {
+                position: "top-right"
+            });
+
+            const searchWidget = new Search({
+                view: view
+            });
+            view.ui.add(searchWidget, {
+                position: "top-left",
+                index: 2
+            });
+
+            const legend = new Legend({
+                view: view
+            });
+            view.ui.add(legend, "top-left");
+
+            view.ui.add(document.getElementById("controls"), "top-right");
+        });
+    </script>
+</head>
+<body>
+<div id="viewDiv"></div>
+<div id="controls" class="esri-widget">
+    <button id="reset" class="esri-button esri-button--secondary">Reset</button>
+</div>
+</body>
